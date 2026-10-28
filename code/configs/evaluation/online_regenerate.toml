@@ -1,0 +1,16 @@
+suite_name = "strict online prune replay with regenerate-if-pruned"
+mode = "online_regenerate"
+default_output_suffix = ".prune_online_regenerate"
+default_output_mode = "append_suffix"
+default_tokenizer_path = "Qwen/Qwen3-4B-Instruct-2507"
+result_file_name = "generation_results.jsonl"
+
+[[groups]]
+title = "strict online regenerate suite"
+
+[[groups.cases]]
+output_subdir = "l1_group_quorum_snapshot_floor_mc2_q0.9__consecutive_below_t0.15_w6__regenerate_qwen3-30b-a3b"
+description = "group_quorum_snapshot_floor min_pruned_count=2, quantile=0.9 + consecutive_below threshold=0.15, window_size=6 + regenerate_if_pruned"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 2, quantile = 0.9, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }
+regen_args = { api_url = "http://0.0.0.0:17002", model_name = "Qwen3-30B-A3B-Instruct-2507", seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 32 }

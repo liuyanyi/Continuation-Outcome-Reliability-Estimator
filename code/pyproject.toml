@@ -1,0 +1,124 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cognitive-probe"
+version = "0.1.0"
+description = "Tree generation, confidence probe training and inference, and benchmark evaluation"
+authors = [{ name = "liuyanyi" }]
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    "torch==2.9.1+cu129",
+    "transformers==4.57.1",
+    "sglang==0.5.9",
+    "sglang-router==0.3.2",
+    "flash-attn==2.8.3",
+    "liger-kernel==0.7.0",
+    "peft==0.18.1",
+    "safetensors==0.7.0",
+    "numpy>=1.26.4,<2",
+    "pandas>=3.0.1,<4",
+    "loguru>=0.7.3,<1",
+    "datasets>=4.6.1,<5",
+    "tqdm>=4.67.3,<5",
+    "pylatexenc>=2.10,<3",
+    "prettytable>=3.17.0,<4",
+    "matplotlib>=3.10.8,<4",
+    "pybase64>=1.4.3,<2",
+    "orjson>=3.11.7,<4",
+    "xxhash>=3.6.0,<4",
+    "scikit-learn>=1.8.0,<2",
+    "tensorboard>=2.20.0,<3",
+    "setuptools>=80.10.2,<81",
+    "h5py>=3.15.1,<4",
+    "httpx>=0.28.1,<1",
+    "fastapi>=0.134.0,<1",
+    "jinja2>=3.1.6,<4",
+    "uvicorn>=0.41.0,<1",
+    "gradio>=6.9.0,<7",
+    "scipy>=1.17.1,<2",
+    "sympy>=1.13.3,<2",
+    "pydantic>=2.0,<3",
+    "accelerate>=1.0,<2",
+]
+
+[dependency-groups]
+dev = [
+    "ruff==0.15.4",
+    "ty==0.0.19",
+    "debugpy>=1.8.20,<2",
+    "nvitop>=1.6.2,<2",
+    "genai-bench>=0.0.3,<0.1",
+]
+
+# ===== UV Configuration =====
+[tool.uv]
+no-build-isolation-package = ["flash-attn"]
+
+# [tool.uv.extra-build-variables]
+# transformer-engine = { NVTE_CUDA_ARCHS = "80;120", NVTE_FRAMEWORK = "pytorch" }
+
+# [tool.uv.extra-build-variables]
+# apex = { APEX_CPP_EXT = "1", APEX_CUDA_EXT = "1", NVCC_APPEND_FLAGS = "--threads 4" }
+
+# PYTORCH WHEEL INDEX
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu129" }
+
+# ===== Ruff Configuration =====
+[tool.ruff]
+indent-width = 4
+target-version = "py312"
+exclude = ["third_party"]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # flake8-logging-format
+    "G",
+]
+ignore = [
+    # lambda expression assignment
+    "E731",
+    # zip without `strict=`
+    "B905",
+    # Loop control variable not used within loop body
+    "B007",
+    # f-string format
+    "UP032",
+    # line length
+    "E501",
+]
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.ruff.lint.per-file-ignores]
+"third_party/**" = ["ALL"]
+
+# ===== Ty Configuration =====
+[tool.ty.environment]
+root = ["./src"]

@@ -1,0 +1,99 @@
+suite_name = "strict online prune replay suite"
+mode = "online"
+default_output_suffix = ".prune_online"
+default_output_mode = "append_suffix"
+default_tokenizer_path = "Qwen/Qwen3-4B-Instruct-2507"
+result_file_name = "generation_results.jsonl"
+
+[[groups]]
+title = "strict online suite: conservative anchors"
+
+[[groups.cases]]
+output_subdir = "consecutive_below_t0.1_w6"
+description = "consecutive_below threshold=0.1, window_size=6"
+strategy = "consecutive_below"
+strategy_args = { threshold = 0.1, window_size = 6 }
+
+[[groups.cases]]
+output_subdir = "consecutive_below_t0.15_w6"
+description = "consecutive_below threshold=0.15, window_size=6"
+strategy = "consecutive_below"
+strategy_args = { threshold = 0.15, window_size = 6 }
+
+[[groups.cases]]
+output_subdir = "valid_window_average_t0.1_w4"
+description = "valid_window_average threshold=0.1, window_size=4"
+strategy = "valid_window_average"
+strategy_args = { threshold = 0.1, window_size = 4 }
+
+[[groups]]
+title = "strict online suite: balanced Pareto points"
+
+[[groups.cases]]
+output_subdir = "consecutive_below_t0.15_w5"
+description = "consecutive_below threshold=0.15, window_size=5"
+strategy = "consecutive_below"
+strategy_args = { threshold = 0.15, window_size = 5 }
+
+[[groups.cases]]
+output_subdir = "valid_window_average_t0.15_w5"
+description = "valid_window_average threshold=0.15, window_size=5"
+strategy = "valid_window_average"
+strategy_args = { threshold = 0.15, window_size = 5 }
+
+[[groups.cases]]
+output_subdir = "valid_window_n_out_of_m_t0.1_n3_m5"
+description = "valid_window_n_out_of_m threshold=0.1, n=3, m=5"
+strategy = "valid_window_n_out_of_m"
+strategy_args = { threshold = 0.1, n = 3, m = 5 }
+
+[[groups.cases]]
+output_subdir = "valid_window_n_out_of_m_t0.15_n5_m6"
+description = "valid_window_n_out_of_m threshold=0.15, n=5, m=6"
+strategy = "valid_window_n_out_of_m"
+strategy_args = { threshold = 0.15, n = 5, m = 6 }
+
+[[groups]]
+title = "strict online suite: more aggressive frontier"
+
+[[groups.cases]]
+output_subdir = "consecutive_below_t0.2_w6"
+description = "consecutive_below threshold=0.2, window_size=6"
+strategy = "consecutive_below"
+strategy_args = { threshold = 0.2, window_size = 6 }
+
+[[groups.cases]]
+output_subdir = "valid_window_n_out_of_m_t0.15_n4_m6"
+description = "valid_window_n_out_of_m threshold=0.15, n=4, m=6"
+strategy = "valid_window_n_out_of_m"
+strategy_args = { threshold = 0.15, n = 4, m = 6 }
+
+[[groups]]
+title = "strict online suite: new level2 strategy"
+
+[[groups.cases]]
+output_subdir = "armed_consecutive_below_t0.15_w6_a0.65"
+description = "armed_consecutive_below threshold=0.15, window_size=6, arm_threshold=0.65"
+strategy = "armed_consecutive_below"
+strategy_args = { threshold = 0.15, window_size = 6, arm_threshold = 0.65 }
+
+[[groups]]
+title = "strict online suite: level1-enhanced cases"
+
+[[groups.cases]]
+output_subdir = "l1_group_quorum_snapshot_floor_mc2_q0.75__consecutive_below_t0.15_w6"
+description = "group_quorum_snapshot_floor min_pruned_count=2, quantile=0.75 + consecutive_below threshold=0.15, window_size=6"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 2, quantile = 0.75, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }
+
+[[groups.cases]]
+output_subdir = "l1_group_quorum_snapshot_floor_mc2_q0.9__consecutive_below_t0.15_w6"
+description = "group_quorum_snapshot_floor min_pruned_count=2, quantile=0.9 + consecutive_below threshold=0.15, window_size=6"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 2, quantile = 0.9, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }
+
+[[groups.cases]]
+output_subdir = "l1_group_consensus_gate_mc4__consecutive_below_t0.15_w6"
+description = "group_consensus_gate min_pruned_count=4 + consecutive_below threshold=0.15, window_size=6"
+input_strategy = "group_consensus_gate"
+input_strategy_args = { min_pruned_count = 4, min_pruned_fraction = 0.0, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }

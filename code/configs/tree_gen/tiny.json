@@ -1,0 +1,21 @@
+{
+  "input_file": "data/examples/train_questions_tiny.jsonl",
+  "output_dir": "outputs/tree_gen_tiny",
+  "model_path": "Qwen/Qwen3-4B-Instruct-2507",
+  "base_url": "http://127.0.0.1:30000",
+  "initial": 2,
+  "expand_prob": 0.005,
+  "max_total_branches": 8,
+  "batch_concurrent_tasks": 1,
+  "scheduler_max_concurrent_tasks": 8,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "max_new_tokens": 512,
+  "split_every_k_tokens": 64,
+  "depth_norm_tokens": 64,
+  "depth_prob_power": 1.5,
+  "disable_refill": false,
+  "refill_ratio": 0.2,
+  "refill_full_remaining_ratio": 0.05,
+  "disable_timeout": false
+}

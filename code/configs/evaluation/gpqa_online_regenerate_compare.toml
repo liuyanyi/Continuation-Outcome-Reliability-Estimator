@@ -1,0 +1,26 @@
+suite_name = "GPQA strict online regenerate model comparison"
+mode = "online_regenerate"
+default_output_suffix = ".prune_online_regenerate_model_compare"
+default_output_mode = "append_suffix"
+default_tokenizer_path = "Qwen/Qwen3-4B-Instruct-2507"
+result_file_name = "generation_results.jsonl"
+
+[[groups]]
+title = "GPQA regenerate: OOD-safe strict gate, original-vs-better model"
+
+# GPQA is out-of-domain for the current probe. Use a stricter group gate than
+# AIME so the number of mistaken prune events stays low before full regenerate.
+
+[[groups.cases]]
+output_subdir = "gpqa_l1_group_quorum_snapshot_floor_mc3_q0.95__armed_cb_t0.15_w6_a0.65_mk128__regenerate_qwen3_4b"
+description = "GPQA regenerate control: group_quorum_snapshot_floor min_pruned_count=3, quantile=0.95 + armed_consecutive_below threshold=0.15, window_size=6, arm_threshold=0.65, min_keep_tokens=128 + regenerate_if_pruned with Qwen3-4B-Instruct-2507 (:17001)"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 3, quantile = 0.95, generation_strategy = "armed_consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6, arm_threshold = 0.65, min_keep_tokens = 128 } }
+regen_args = { api_url = "http://0.0.0.0:17001", model_name = "Qwen3-4B-Instruct-2507", max_new_tokens = 12288, seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 16 }
+
+[[groups.cases]]
+output_subdir = "gpqa_l1_group_quorum_snapshot_floor_mc3_q0.95__armed_cb_t0.15_w6_a0.65_mk128__regenerate_qwen3_next_80b"
+description = "GPQA regenerate main candidate: same OOD-safe strict gate + regenerate_if_pruned with Qwen3-Next-80B-A3B-Instruct (:17008)"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 3, quantile = 0.95, generation_strategy = "armed_consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6, arm_threshold = 0.65, min_keep_tokens = 128 } }
+regen_args = { api_url = "http://0.0.0.0:17008", model_name = "Qwen3-Next-80B-A3B-Instruct", max_new_tokens = 12288, seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 8 }

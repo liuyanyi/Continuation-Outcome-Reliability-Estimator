@@ -1,0 +1,23 @@
+suite_name = "AIME strict online regenerate model comparison"
+mode = "online_regenerate"
+default_output_suffix = ".prune_online_regenerate_model_compare"
+default_output_mode = "append_suffix"
+default_tokenizer_path = "Qwen/Qwen3-4B-Instruct-2507"
+result_file_name = "generation_results.jsonl"
+
+[[groups]]
+title = "AIME regenerate: same prune gate, original-vs-better model"
+
+[[groups.cases]]
+output_subdir = "aime_l1_group_quorum_snapshot_floor_mc2_q0.9__consecutive_below_t0.15_w6__regenerate_qwen3_4b"
+description = "AIME regenerate control: group_quorum_snapshot_floor min_pruned_count=2, quantile=0.9 + consecutive_below threshold=0.15, window_size=6 + regenerate_if_pruned with Qwen3-4B-Instruct-2507 (:17001)"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 2, quantile = 0.9, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }
+regen_args = { api_url = "http://0.0.0.0:17001", model_name = "Qwen3-4B-Instruct-2507", seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 32 }
+
+[[groups.cases]]
+output_subdir = "aime_l1_group_quorum_snapshot_floor_mc2_q0.9__consecutive_below_t0.15_w6__regenerate_qwen3_next_80b"
+description = "AIME regenerate main candidate: same prune gate + regenerate_if_pruned with Qwen3-Next-80B-A3B-Instruct (:17008)"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 2, quantile = 0.9, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }
+regen_args = { api_url = "http://0.0.0.0:17008", model_name = "Qwen3-Next-80B-A3B-Instruct", seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 16 }

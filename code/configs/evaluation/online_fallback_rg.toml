@@ -1,0 +1,17 @@
+suite_name = "strict online prune replay with fallback-regenerate-if-pruned"
+mode = "online_fallback_rg"
+default_output_suffix = ".prune_online_fallback_rg"
+default_output_mode = "append_suffix"
+default_tokenizer_path = "Qwen/Qwen3-4B-Instruct-2507"
+result_file_name = "generation_results.jsonl"
+
+[[groups]]
+title = "strict online fallback-regenerate suite"
+
+[[groups.cases]]
+output_subdir = "l1_group_quorum_snapshot_floor_mc2_q0.9__consecutive_below_t0.15_w6__fallback_rg50pct"
+description = "group_quorum_snapshot_floor min_pruned_count=2, quantile=0.9 + consecutive_below threshold=0.15, window_size=6 + fallback_regenerate_if_pruned rollback_ratio=0.5"
+input_strategy = "group_quorum_snapshot_floor"
+input_strategy_args = { min_pruned_count = 2, quantile = 0.9, generation_strategy = "consecutive_below", generation_strategy_args = { threshold = 0.15, window_size = 6 } }
+fallback_args = { api_url = "http://0.0.0.0:17001", model_name = "Qwen3-4B-Instruct-2507", rollback_ratio = 0.5, seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 32 }
+# fallback_args = { api_url = "http://0.0.0.0:17002", model_name = "Qwen3-30B-A3B-Instruct-2507", rollback_tokens = 32, seed_offset = 1000003, timeout_s = 3000.0, concurrency_limit = 32 }
