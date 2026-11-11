@@ -50,8 +50,8 @@ def extract_topk_logprobs(step_top_logprobs: Any, *, topk: int) -> list[float]:
 def compute_token_confidence(step_top_logprobs: Any, *, topk: int) -> float:
     """Compute the literal DeepConf token score from top-k logprobs.
 
-    The returned score follows the user's paper notes:
-    `C_i = -mean(top-k logprobs)`.
+    `C_i = -mean(top-k logprobs)` is higher-is-better confidence in DeepConf.
+    It is not the negative log-likelihood of the sampled token.
     """
 
     values = extract_topk_logprobs(step_top_logprobs, topk=topk)
@@ -61,7 +61,10 @@ def compute_token_confidence(step_top_logprobs: Any, *, topk: int) -> float:
 
 
 def compute_token_probability_proxy(step_top_logprobs: Any, *, topk: int) -> float:
-    """Monotonic probability-like proxy in [0, 1] derived from token confidence."""
+    """Geometric mean of top-k probabilities (decreases as confidence rises).
+
+    Retained for compatibility; do not use this as a DeepConf vote weight.
+    """
 
     confidence = compute_token_confidence(step_top_logprobs, topk=topk)
     if confidence < 0.0:

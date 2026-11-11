@@ -702,11 +702,36 @@ def _build_v2_rows(
             was_pruned = str(prune_meta.get("decision") or "") == "prune"
             prune_reason = str(prune_meta.get("reason") or "") or None
 
+        parent_segment_id = None
+        refrain_meta = row.get("refrain_postprocess")
+        if (
+            isinstance(refrain_meta, dict)
+            and refrain_meta.get("decision") == "continue_with_direct_answer"
+        ):
+            # The legacy continuation row contains only the new answer tokens.
+            # The retained reasoning was already generated and must be billed too.
+            prefix_tokens = refrain_meta.get("kept_prefix_tokens")
+            if isinstance(prefix_tokens, bool) or not isinstance(prefix_tokens, int) or prefix_tokens < 0:
+                raise ValueError("REFRAIN continuation requires nonnegative integer kept_prefix_tokens")
+            parent_segment_id = f"{segment_id}__refrain_prefix"
+            segments.append(
+                GenerationSegment(
+                    segment_id=parent_segment_id,
+                    sample_id=sample_id,
+                    executor_name="model",
+                    model_name=overview.model_name or overview.model,
+                    # Legacy rows retain the prefix length, not its full text/IDs.
+                    usage=SegmentUsage(output_tokens=prefix_tokens, request_count=1),
+                    visible_output_tokens=prefix_tokens,
+                    source_row_index=row_idx,
+                )
+            )
+
         segments.append(
             GenerationSegment(
                 segment_id=segment_id,
                 sample_id=sample_id,
-                parent_segment_id=None,
+                parent_segment_id=parent_segment_id,
                 executor_name="model",
                 model_name=overview.model_name or overview.model,
                 seed=seed,
@@ -1100,7 +1125,7 @@ def _compute_report_object(
             gt = answer_by_source_row.get(source_row_idx, "")
         if gt:
             sample_ground_truths.setdefault(sample_id, gt)
-        score = 1 if grade_answer_verl(response, gt) else 0
+        score = 0 if output.was_pruned else (1 if grade_answer_verl(response, gt) else 0)
         grouped_scores[sample_id].append(score)
         if not output.was_pruned:
             vote_answer = _extract_vote_answer(response)

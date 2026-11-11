@@ -166,20 +166,24 @@ def compute_per_problem_metrics(run_dir: Path, k: int) -> dict[str, Any]:
         for output in grouped[sample_id]:
             output_id = str(output.get("output_id"))
             result = judge_results.get(output_id)
+            if output.get("was_pruned"):
+                # pruned-as-abstain unified convention: pruned outputs score 0
+                # for Mean/Pass and are not eligible for Maj voting.
+                scores.append(0)
+                n_outputs_pruned += 1
+                tokens.append(visible_tokens[output_id])
+                continue
             if result is None:
                 missing.append(output_id)
                 continue
             score = 1 if result.get("passed") else 0
             scores.append(score)
-            if output.get("was_pruned"):
-                n_outputs_pruned += 1
+            n_outputs_vote_eligible += 1
+            signature = _behavior_vector(result)
+            if signature is None:
+                missing_behavior.append(output_id)
             else:
-                n_outputs_vote_eligible += 1
-                signature = _behavior_vector(result)
-                if signature is None:
-                    missing_behavior.append(output_id)
-                else:
-                    vote_signatures.append(signature)
+                vote_signatures.append(signature)
             tokens.append(visible_tokens[output_id])
         if len(scores) != k:
             raise ValueError(f"sample_id={sample_id} has {len(scores)} judged outputs, expected k={k}.")

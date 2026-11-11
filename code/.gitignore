@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+outputs/
+*.egg-info/
+build/
+dist/
+.cache/
+logs/
+
+# Locally acquired GPQA data is not part of public releases.
+/data/gpqa/
+/data/private/
+/data/benchmarks/gpqa*.jsonl
+/data/benchmarks/gpqa*.csv
+
+# Large data is hosted separately on Hugging Face.
+/data/
+/track_token_ids.json
+/track_token_id2text.json
+/downloads/
+*.zip
+*.zip.sha256

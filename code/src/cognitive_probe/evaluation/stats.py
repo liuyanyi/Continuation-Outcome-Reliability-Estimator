@@ -197,7 +197,7 @@ def compute_per_problem_metrics_from_run(run_dir: Path, k: int) -> dict[str, Any
         if gt:
             sample_ground_truths.setdefault(sample_id, gt)
 
-        score = 1 if grade_answer_verl(output.response, gt) else 0
+        score = 0 if output.was_pruned else (1 if grade_answer_verl(output.response, gt) else 0)
         grouped_scores[sample_id].append(score)
 
         if not output.was_pruned:

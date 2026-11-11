@@ -544,7 +544,7 @@ def main() -> None:
         "score_field": args.score_field,
         "formula": "neg_avg_topk_logprob",
         "invalid_value": INVALID_SCORE,
-        "lower_is_better": True,
+        "lower_is_better": False,
         "logprob_source": "meta_info.input_top_logprobs",
         "request_mode": "prompt_logprob",
         "sgl_url": args.sgl_url,

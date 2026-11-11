@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import re
+import json
+import codecs
+from bisect import bisect_left, bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -313,6 +316,60 @@ def token_char_offsets(
     output_ids: Sequence[int],
 ) -> list[tuple[int, int]]:
     normalized_ids = [int(token_id) for token_id in output_ids]
+    # Decode the ORIGINAL byte-level tokenization. Re-encoding may merge tokens
+    # differently, and decoding individual tokens corrupts split UTF-8 characters.
+    decoder = getattr(getattr(tokenizer, "backend_tokenizer", None), "decoder", None)
+    decoder_state = json.loads(decoder.__getstate__()) if decoder is not None else {}
+    if decoder_state.get("type") == "ByteLevel":
+        byte_values = list(range(33, 127)) + list(range(161, 173)) + list(range(174, 256))
+        codepoints = byte_values.copy()
+        extra = 0
+        for value in range(256):
+            if value not in byte_values:
+                byte_values.append(value)
+                codepoints.append(256 + extra)
+                extra += 1
+        byte_decoder = {chr(c): b for c, b in zip(codepoints, byte_values)}
+        added_ids = set(tokenizer.get_added_vocab().values())
+        pieces = []
+        for token_id, token in zip(normalized_ids, tokenizer.convert_ids_to_tokens(normalized_ids)):
+            pieces.append(token.encode("utf-8") if token_id in added_ids else bytes(byte_decoder[c] for c in token))
+        target = response_text.encode("utf-8")
+        specials = set(tokenizer.all_special_ids)
+        for skip_special in (False, True):
+            kept = [b"" if skip_special and i in specials else p for i, p in zip(normalized_ids, pieces)]
+            original_bytes = b"".join(kept)
+            if original_bytes.decode("utf-8", errors="replace") != response_text:
+                continue
+            char_byte_ends = []
+            if original_bytes == target:
+                cursor = 0
+                for char in response_text:
+                    cursor += len(char.encode("utf-8"))
+                    char_byte_ends.append(cursor)
+            else:
+                # Truncated/invalid UTF-8 is rendered as U+FFFD by ByteLevel.
+                # Track when characters become available, including lookahead
+                # needed to recognize malformed sequences.
+                utf8 = codecs.getincrementaldecoder("utf-8")(errors="replace")
+                for cursor, value in enumerate(original_bytes, 1):
+                    char_byte_ends.extend([cursor] * len(utf8.decode(bytes([value]))))
+                char_byte_ends.extend([len(original_bytes)] * len(utf8.decode(b"", final=True)))
+                assert len(char_byte_ends) == len(response_text)
+            result = []
+            cursor = 0
+            for piece in kept:
+                start = bisect_right(char_byte_ends, cursor)
+                cursor += len(piece)
+                end = start
+                if piece:
+                    boundary = bisect_left(char_byte_ends, cursor)
+                    end = (bisect_right(char_byte_ends, cursor)
+                           if boundary < len(char_byte_ends) and char_byte_ends[boundary] == cursor
+                           else boundary + 1)
+                result.append((start, end))
+            return result
+
     encoded = tokenizer(
         response_text,
         add_special_tokens=False,
@@ -328,32 +385,23 @@ def token_char_offsets(
     ):
         return [(int(start), int(end)) for start, end in offsets]
 
-    fallback_offsets: list[tuple[int, int]] = []
-    cursor = 0
-    response_len = len(response_text)
-    for token_id in normalized_ids:
-        piece = tokenizer.decode(
-            [token_id],
-            skip_special_tokens=False,
-            clean_up_tokenization_spaces=False,
-        )
-        if not piece:
-            fallback_offsets.append((cursor, cursor))
-            continue
-
-        start = response_text.find(piece, cursor)
-        if start < 0:
-            lstripped = piece.lstrip()
-            if lstripped:
-                start = response_text.find(lstripped, cursor)
-                if start >= 0:
-                    piece = lstripped
-        if start < 0:
-            start = cursor
-        end = min(response_len, start + len(piece))
-        cursor = max(cursor, end)
-        fallback_offsets.append((start, end))
-    return fallback_offsets
+    # Special tokens omitted from response_text occupy no characters but retain
+    # their original token slots. Only accept an exact ID alignment.
+    specials = set(getattr(tokenizer, "all_special_ids", []))
+    if isinstance(encoded_ids, list) and isinstance(offsets, list) and len(offsets) == len(encoded_ids):
+        if [i for i in normalized_ids if i not in specials] == encoded_ids:
+            result = []
+            cursor = index = 0
+            for token_id in normalized_ids:
+                if token_id in specials:
+                    result.append((cursor, cursor))
+                else:
+                    start, end = map(int, offsets[index])
+                    result.append((start, end))
+                    cursor = end
+                    index += 1
+            return result
+    raise ValueError("Cannot exactly align response_text with original output_ids; refusing approximate REFRAIN token offsets")
 
 
 def build_step_ranges(
@@ -375,19 +423,20 @@ def build_step_ranges(
         output_ids=output_ids,
     )
     step_ranges: list[StepRange] = []
+    # Ignore invisible specials; overlapping offsets for split UTF-8 tokens are
+    # intentional. Include ALL tokens contributing to the final character.
+    visible = [(i, start, end) for i, (start, end) in enumerate(offsets) if end > start]
+    starts = [s for _, s, _ in visible]
+    ends = [e for _, _, e in visible]
+    if starts != sorted(starts) or ends != sorted(ends):
+        raise ValueError("Non-monotonic REFRAIN token offsets")
     for step_index, (step_text, char_start, char_end) in enumerate(steps):
-        token_start: int | None = None
-        token_end_inclusive: int | None = None
-        for token_idx, (tok_start, tok_end) in enumerate(offsets):
-            if tok_end > char_start and token_start is None:
-                token_start = token_idx
-            if tok_start < char_end:
-                token_end_inclusive = token_idx
-
-        if token_start is None or token_end_inclusive is None:
-            continue
-        if token_end_inclusive < token_start:
-            continue
+        first = bisect_right(ends, char_start)
+        last = bisect_left(starts, char_end) - 1
+        if first > last or first >= len(visible):
+            raise ValueError(f"REFRAIN step {step_index} has no aligned tokens")
+        token_start = visible[first][0]
+        token_end_inclusive = visible[last][0]
 
         step_ranges.append(
             StepRange(

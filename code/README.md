@@ -167,6 +167,15 @@ scripts remain under `scripts/evaluation/`. The four-step head and threshold are
 only for checking the workflow. When using logit features, `--base-model-path`
 must be a local model directory because inference reads its weight files.
 
+DeepConf uses higher-is-better confidence `-mean(top-k logprobs)`. Its replay
+entry point takes the minimum group confidence per warmup trace, sets the cutoff
+at the `(1 - keep_ratio)` percentile (90th percentile for `keep_ratio=0.1`), and
+prunes a trace when a full group falls below that cutoff. Vote weights use raw
+trace confidence; the CLI accepts only `--vote-weight raw`. Disjoint 32-token
+groups, 16 complete warmup traces, inclusion of warmup votes, and a fixed budget
+of 32 traces remain the defaults. Consensus is recorded but does not stop replay.
+The generic `Maj@K` evaluator reports unweighted majority voting.
+
 After the data preparation step, AIME 2024/2025 and cumulative LiveCodeBench v6
 inputs are available under `data/benchmarks/`, with the complete LCB judge sidecar. See [EVALUATION.md](docs/EVALUATION.md) for input selection and the
 code-judge command and local GPQA acquisition/conversion steps. GPQA questions and

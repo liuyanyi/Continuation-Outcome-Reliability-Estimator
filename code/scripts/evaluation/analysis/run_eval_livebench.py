@@ -484,7 +484,12 @@ def compute_report(
         for k in ks
     }
     token_summary = token_summary_by_k[str(max_k)]
-    status = "judged" if judge_results else "pending_judge"
+    all_abstained = bool(grouped_outputs) and all(
+        output.get("was_pruned")
+        for outputs in grouped_outputs.values()
+        for output in outputs[:max_k]
+    )
+    status = "judged" if judge_results or all_abstained else "pending_judge"
     mean_at_k: dict[str, float | None] = {}
     maj_at_k: dict[str, float | None] = {}
     best_score_mean: dict[str, float | None] = {}
@@ -501,6 +506,11 @@ def compute_report(
             vote_signatures: list[tuple[bool, ...]] = []
             for output in outputs[:max_k]:
                 output_id = str(output.get("output_id"))
+                if output.get("was_pruned"):
+                    if len(scores) < k:
+                        # pruned-as-abstain unified convention: pruned rollouts have no valid answer.
+                        scores.append(0)
+                    continue
                 result = judge_results.get(output_id)
                 if result is None:
                     missing_output_ids.add(output_id)
@@ -508,12 +518,11 @@ def compute_report(
                 score = 1 if result.get("passed") else 0
                 if len(scores) < k:
                     scores.append(score)
-                    if not output.get("was_pruned"):
-                        signature = _behavior_vector(result)
-                        if signature is None:
-                            missing_behavior_output_ids.add(output_id)
-                        else:
-                            vote_signatures.append(signature)
+                    signature = _behavior_vector(result)
+                    if signature is None:
+                        missing_behavior_output_ids.add(output_id)
+                    else:
+                        vote_signatures.append(signature)
 
             if scores:
                 per_item_mean.append(sum(scores) / len(scores))
@@ -535,6 +544,10 @@ def compute_report(
     for outputs in grouped_outputs.values():
         scores = []
         for output in outputs[:max_k]:
+            if output.get("was_pruned"):
+                # pruned-as-abstain unified convention: pruned rollouts have no valid answer.
+                scores.append(0)
+                continue
             result = judge_results.get(str(output.get("output_id")))
             if result is None:
                 continue
@@ -582,7 +595,7 @@ def compute_report(
         "maj_at_k": maj_at_k,
         "best_score_mean": best_score_mean,
         "lcb_pass_at_1": lcb_pass_at_1,
-        "missing_judgements": len(missing_output_ids) if judge_results else None,
+        "missing_judgements": len(missing_output_ids) if judge_results or all_abstained else None,
         "error_counts": dict(sorted(error_counts.items())),
         "verdict_counts": dict(sorted(verdict_counts.items())),
         "avg_final_visible_tokens": token_summary["avg_final_visible_tokens"],

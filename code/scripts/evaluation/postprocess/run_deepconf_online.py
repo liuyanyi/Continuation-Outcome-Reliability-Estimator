@@ -152,8 +152,9 @@ def main() -> None:
         default=0.10,
         help=(
             "Fraction of best warmup traces kept as the pruning cutoff. "
-            "Because deepconf_logprob writes lower-is-better scores, the threshold is the "
-            "keep-ratio percentile and adaptive traces prune when a group score exceeds it."
+            "DeepConf scores are higher-is-better: the threshold is the "
+            "(1 - keep-ratio) percentile of minimum group scores, and adaptive "
+            "traces prune when a group score falls below it."
         ),
     )
     parser.add_argument(
@@ -174,9 +175,9 @@ def main() -> None:
     parser.add_argument(
         "--vote-weight",
         type=str,
-        default="exp_neg",
-        choices=("exp_neg", "inverse", "raw"),
-        help="How to convert the lower-is-better trace score into a positive vote weight.",
+        default="raw",
+        choices=("raw",),
+        help="Use the higher-is-better trace confidence directly as the vote weight.",
     )
     parser.add_argument(
         "--exclude-warmup-from-vote",
@@ -264,7 +265,7 @@ def main() -> None:
             keep_ratio=args.keep_ratio,
             consensus_threshold=args.consensus_threshold,
             group_size=args.group_size,
-            lower_is_better=True,
+            lower_is_better=False,
             vote_weight=args.vote_weight,
             include_warmup_in_vote=not args.exclude_warmup_from_vote,
             decode_output_ids=decode_output_ids,
@@ -301,7 +302,7 @@ def main() -> None:
                 "consensus_answer": trace.consensus_answer,
                 "consensus_beta": trace.consensus_beta,
                 "warmup_keep_ratio": args.keep_ratio,
-                "lower_is_better": True,
+                "lower_is_better": False,
                 "vote_weight_method": args.vote_weight,
                 "consensus_stop_enabled": False,
             }
@@ -368,7 +369,7 @@ def main() -> None:
             "keep_ratio": args.keep_ratio,
             "consensus_threshold": args.consensus_threshold,
             "group_size": args.group_size,
-            "lower_is_better": True,
+            "lower_is_better": False,
             "vote_weight": args.vote_weight,
             "include_warmup_in_vote": not args.exclude_warmup_from_vote,
             "consensus_stop_enabled": False,
@@ -406,7 +407,7 @@ def main() -> None:
                 "keep_ratio": args.keep_ratio,
                 "consensus_threshold": args.consensus_threshold,
                 "group_size": args.group_size,
-                "lower_is_better": True,
+                "lower_is_better": False,
                 "vote_weight": args.vote_weight,
                 "include_warmup_in_vote": not args.exclude_warmup_from_vote,
                 "consensus_stop_enabled": False,

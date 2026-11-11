@@ -54,8 +54,7 @@ conditions. Download `gpqa_diamond.csv` to `data/private/gpqa_diamond.csv` local
 The converter shuffles answer choices deterministically with this seed and writes
 198 rows for the full Diamond subset. Then use the AIME generation command above
 with `--data data/benchmarks/gpqa_diamond.jsonl` and `--experiment-name gpqa_diamond`.
-The fixed seed makes this preparation reproducible; it does not establish parity
-with historical experiment files whose conversion seed was not recorded.
+The fixed seed makes this preparation reproducible.
 
 Both the downloaded CSV and converted JSONL are excluded by `.gitignore` and the
 release packager. Keep model outputs containing GPQA prompts local too.
@@ -86,6 +85,18 @@ The same command evaluates a pruned LCB run. `--run-judge` executes generated
 Python against the test cases; omitting it only summarizes existing judge results.
 `--public-only` is diagnostic and does not reproduce full benchmark scoring.
 The report includes correctness, token usage and `lcb_pass@1`.
+
+## Scoring and token accounting
+
+Pure pruning is an abstention: its slot scores zero for Mean/Pass, remains in
+the K denominator, and casts no majority vote. Its generated prefix still costs
+tokens. This applies to math, LiveCodeBench and their bootstrap summaries.
+A REFRAIN direct-answer continuation is scored normally, with both the retained
+reasoning prefix and the new answer counted in output-token cost.
+
+REFRAIN aligns steps against the original generated token bytes, including
+split UTF-8 characters and hidden special tokens. Inputs that cannot be aligned
+exactly are rejected.
 
 Probe scoring and pruning follow the README. DeepConf, REFRAIN and bootstrap
 entrypoints remain under `scripts/evaluation/`; use their `--help` for optional runs.

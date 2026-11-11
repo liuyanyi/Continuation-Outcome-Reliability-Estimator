@@ -1,37 +1,31 @@
-# Validation (2026-10-28)
+# Validation
 
-Validated using the parent project virtual environment with release/src on PYTHONPATH.
+## CPU validation
 
-- 31 CPU unit tests passed, including Qwen3 patch idempotency/refusal checks,
-  exported-head parity and input-embedding selection for untied/sharded checkpoints.
-- A fake local SGLang service completed the real benchmark generation, probe
-  encode, online pruning and evaluation scripts on CPU. Token-aligned scores and
-  final V2 report artifacts were checked. This does not validate SGLang kernels.
-- A wheel built successfully in a temporary copy and contained the tree, probe,
-  evaluation and Nemotron extension modules.
-- All 12 core tree, scoring, dataset, training, inference, export and benchmark
-  CLI entrypoints accepted --help.
-- A temporary random tiny Qwen3 model completed four CPU training steps, checkpoint
-  inference and standalone head export. The CPU smoke run used SDPA attention,
-  use_cpu=true and bf16=false; no model weights were downloaded.
-- Static source/example/config checks and startup shell syntax checks passed.
-- uv lock --check --offline passed; uv sync --frozen --no-dev --dry-run succeeded.
-  This is an installation plan check, not a fresh CUDA environment installation.
+All 42 CPU unittest cases passed. Static checks passed for 66 Python sources,
+examples and configuration/lock syntax.
 
-Not yet validated: real GPU tree generation, SGLang encode output parity against
-Transformers, Nemotron runtime, and a full benchmark run against live services.
+Coverage includes:
 
-Compatibility changes: the training/head files include current normalized-sqrt-N
-loss support and distributed head-save guarding. Probe encode uses input embedding
-weights for logit features, matching training even when LM-head weights are untied.
-Other experiment-only changes were not wholesale copied into the release.
+- A local fake SGLang service running generation, probe encoding, online pruning
+  and evaluation, with token-aligned scores and final V2 report checks.
+- Qwen3 patch idempotency and refusal checks, exported-head parity, and input
+  embedding selection for untied and sharded checkpoints.
+- Exact REFRAIN step mapping with split Unicode bytes, added tokens, hidden EOS,
+  truncated UTF-8, non-ByteLevel tokenizers and rejection of unverifiable alignment.
+- Math, LiveCodeBench and bootstrap abstention scoring, including pruned prefixes
+  containing correct answers, absent judge records and the fixed K denominator.
+- REFRAIN prefix and continuation costs across math, LiveCodeBench and bootstrap:
+  a 100-token prefix plus a 3-token answer costs 103 tokens. Continued answers
+  retain normal scoring.
+- Token-map added-token coverage, batch scoring failure exits, pruning behavior,
+  tree configuration validation and CLI overrides.
 
-Additional audit fixes: added-token coverage and parent-directory creation in the
-token-map tool; nonzero failure exits for batch scoring/tree generation; independent
-pruning-test imports; tree configuration range validation; explicit tiny probe
-stride and instructions to disable automatic math evaluation for code benchmarks.
+The tests use local fixtures without model or tokenizer downloads. They do not
+validate real GPU tree generation, SGLang kernels or encode parity against
+Transformers, Nemotron runtime, or full benchmarks against live services.
 
-Publishing metadata still requires an owner-selected LICENSE.
+Publishing metadata requires an owner-selected LICENSE.
 
 ## Packaged evaluation data
 
@@ -47,8 +41,8 @@ Publishing metadata still requires an owner-selected LICENSE.
 
 These are data-integrity checks, not new model benchmark results.
 
-GPQA question/answer data was removed before public packaging. Its acquisition
-and seeded local conversion remain documented; both archive types exclude it.
+GPQA question/answer data is not included. Its acquisition and seeded local
+conversion are documented; both archive types exclude it.
 
 Split-package filtering was tested with synthetic code/data/GPQA/cache files.
 GPQA local conversion was checked in temporary directories: 198 unique rows,
