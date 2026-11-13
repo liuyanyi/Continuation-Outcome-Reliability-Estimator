@@ -5,6 +5,10 @@ the main README. Set its model/tokenizer paths and training data paths before
 using another model. `training/` and `evaluation/` contain larger reference
 configurations; their dataset/output paths must be adapted to your experiment.
 
+For the full G3 method and training-seed experiments, use
+[training/g3/](training/g3/README.md): one epoch, `soft_bce + sqrt_n`, fixed
+data seed and exported heads for shared encoding.
+
 Tree generation: `tree_gen/tiny.json` is the smoke preset; `tree_gen/qwen3_4b.json`
 is the larger reference preset. Pass `--config FILE` to `run_tree_gen_batch.py`.
 Keys use CLI names with underscores; CLI overrides JSON, which overrides defaults.

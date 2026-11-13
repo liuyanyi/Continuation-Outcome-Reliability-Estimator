@@ -41,9 +41,6 @@ def _build_loss_weights(
         weight = torch.ones_like(N)
     elif weight_mode == "sqrt_n":
         weight = torch.sqrt(torch.clamp(N, min=1e-6))
-    elif weight_mode == "sqrt_n_normalized":
-        sqrt_n = torch.sqrt(torch.clamp(N, min=1e-6))
-        weight = sqrt_n / sqrt_n.mean().clamp(min=1e-6)
     elif weight_mode == "n":
         weight = N
     else:
@@ -153,10 +150,10 @@ class GenericForProbing:
             raise ValueError(
                 f"Unsupported loss_type={self.loss_type}. Expected one of: soft_bce, mse_prob"
             )
-        if self.loss_weight_mode not in {"none", "sqrt_n", "sqrt_n_normalized", "n"}:
+        if self.loss_weight_mode not in {"none", "sqrt_n", "n"}:
             raise ValueError(
                 "Unsupported loss_weight_mode="
-                f"{self.loss_weight_mode}. Expected one of: none, sqrt_n, sqrt_n_normalized, n"
+                f"{self.loss_weight_mode}. Expected one of: none, sqrt_n, n"
             )
         if self.hidden_feature_dim + self.logit_feature_dim <= 0:
             raise ValueError(
@@ -499,10 +496,10 @@ class SingleProbeHead(nn.Module):
             raise ValueError(
                 f"Unsupported loss_type={self.loss_type}. Expected one of: soft_bce, mse_prob"
             )
-        if self.loss_weight_mode not in {"none", "sqrt_n", "sqrt_n_normalized", "n"}:
+        if self.loss_weight_mode not in {"none", "sqrt_n", "n"}:
             raise ValueError(
                 "Unsupported loss_weight_mode="
-                f"{self.loss_weight_mode}. Expected one of: none, sqrt_n, sqrt_n_normalized, n"
+                f"{self.loss_weight_mode}. Expected one of: none, sqrt_n, n"
             )
         if self.hidden_feature_dim + self.logit_feature_dim <= 0:
             raise ValueError(

@@ -140,9 +140,9 @@ class ProbeArguments:
             raise ValueError("min_n_value must be > 0")
         if self.loss_type not in {"soft_bce", "mse_prob"}:
             raise ValueError("loss_type must be one of: soft_bce, mse_prob")
-        if self.loss_weight_mode not in {"none", "sqrt_n", "sqrt_n_normalized", "n"}:
+        if self.loss_weight_mode not in {"none", "sqrt_n", "n"}:
             raise ValueError(
-                "loss_weight_mode must be one of: none, sqrt_n, sqrt_n_normalized, n"
+                "loss_weight_mode must be one of: none, sqrt_n, n"
             )
         if self.pooling_mode not in {"last_token", "segment_mean"}:
             raise ValueError("pooling_mode must be one of: last_token, segment_mean")

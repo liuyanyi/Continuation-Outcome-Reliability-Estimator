@@ -108,6 +108,9 @@ the backbone, uses last-token pooling and runs four training steps.
 For full training, adjust the step/epoch limits and data paths. Keep the backbone
 frozen for the separate base-model-plus-head inference workflow below.
 
+The [G3 training recipe](configs/training/g3/README.md) includes the full
+`soft_bce + sqrt_n` configuration and a training/export script for five seeds.
+
 ## 3. Benchmark: generate, score, prune and evaluate
 
 Start generation again if stopped. Generate four rollouts per question and evaluate
@@ -166,6 +169,10 @@ server requests. Regenerate/fallback workflows, DeepConf, REFRAIN and bootstrap
 scripts remain under `scripts/evaluation/`. The four-step head and threshold are
 only for checking the workflow. When using logit features, `--base-model-path`
 must be a local model directory because inference reads its weight files.
+
+For multiple heads trained on the same backbone, use
+[shared encoding](scripts/evaluation/prob/README_multihead.md) to encode each
+prefix once and write a separate scored run for each head.
 
 DeepConf uses higher-is-better confidence `-mean(top-k logprobs)`. Its replay
 entry point takes the minimum group confidence per warmup trace, sets the cutoff

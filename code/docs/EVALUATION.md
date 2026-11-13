@@ -91,6 +91,9 @@ The report includes correctness, token usage and `lcb_pass@1`.
 Pure pruning is an abstention: its slot scores zero for Mean/Pass, remains in
 the K denominator, and casts no majority vote. Its generated prefix still costs
 tokens. This applies to math, LiveCodeBench and their bootstrap summaries.
+CORE uses strict online replay through `run_probe_prune_online.py`: the cost
+includes every generated token through the probe that confirms stopping,
+including that token. Use this entrypoint for the training-seed experiments too.
 A REFRAIN direct-answer continuation is scored normally, with both the retained
 reasoning prefix and the new answer counted in output-token cost.
 

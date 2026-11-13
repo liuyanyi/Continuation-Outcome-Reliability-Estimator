@@ -20,6 +20,8 @@ import argparse
 import asyncio
 import copy
 import os
+from collections import deque
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -60,19 +62,19 @@ def _load_original_args(input_dir: Path) -> dict[str, Any]:
     return load_json(src_args_path)
 
 
-def _load_track_token_ids(path: Path) -> set[int]:
+def _load_track_token_map(path: Path) -> dict[int, str]:
     payload = load_json(path)
     if not isinstance(payload, dict):
         raise ValueError(
             f"track token file must be a JSON object mapping token_id->text, got {type(payload)}"
         )
 
-    ids: set[int] = set()
-    for key in payload:
-        ids.add(int(key))
-    if not ids:
+    token_map: dict[int, str] = {}
+    for key, value in payload.items():
+        token_map[int(key)] = str(value)
+    if not token_map:
         raise ValueError(f"No track token ids found in: {path}")
-    return ids
+    return token_map
 
 
 def _extract_lm_head_weight(model_path: str) -> torch.Tensor:
@@ -120,21 +122,29 @@ def _extract_lm_head_weight(model_path: str) -> torch.Tensor:
         return weights.get_tensor(key).float().contiguous()
 
 
-def _build_track_tasks(
+def _build_probe_tasks(
     records: list[dict[str, Any]],
-    track_token_ids: set[int],
+    *,
+    probe_point_mode: str,
+    track_token_map: dict[int, str],
     track_token_stride: int,
 ) -> list[dict[str, Any]]:
     """Build task list with only positions, prefix_ids will be constructed on-demand.
 
-    Only keep one tracked token every `track_token_stride` output positions per record.
+    Only keep one selected point every `track_token_stride` output positions per record.
     """
     if track_token_stride <= 0:
         raise ValueError("track_token_stride must be > 0")
+    if probe_point_mode not in {"track_token", "stride"}:
+        raise ValueError(f"Unsupported probe_point_mode={probe_point_mode!r}")
+    if probe_point_mode == "track_token" and not track_token_map:
+        raise ValueError(
+            f"probe_point_mode={probe_point_mode} requires a non-empty track token map"
+        )
 
     tasks: list[dict[str, Any]] = []
     for ridx, record in enumerate(
-        tqdm(records, desc="Build track tasks", unit="record")
+        tqdm(records, desc="Build probe tasks", unit="record")
     ):
         input_ids = record.get("input_ids")
         output_ids = record.get("output_ids")
@@ -143,10 +153,15 @@ def _build_track_tasks(
                 "Each record must contain list[int] fields: input_ids and output_ids"
             )
 
-        # Keep one tracked token every N output positions for this record.
+        # Keep one selected point every N output positions for this record.
         last_kept_pos = -track_token_stride
         for pos, token_id in enumerate(output_ids):
-            if int(token_id) not in track_token_ids:
+            if probe_point_mode == "stride":
+                selected = True
+            else:
+                selected = int(token_id) in track_token_map
+
+            if not selected:
                 continue
             if pos - last_kept_pos < track_token_stride:
                 continue
@@ -158,6 +173,44 @@ def _build_track_tasks(
             )
             last_kept_pos = pos
     return tasks
+
+
+def _iter_probe_batches(
+    tasks: list[dict[str, Any]],
+    *,
+    batch_size: int,
+    interleave_records: bool,
+) -> Iterator[list[dict[str, Any]]]:
+    """Keep at most one in-flight prefix per record, with a bounded active set.
+
+    The caller awaits each batch before requesting the next one. Interleaving
+    lets independent rollouts fill the batch while each rollout reuses the KV
+    cache from its previous prefix. Task identities and per-record order remain
+    unchanged, including when tasks have been filtered by a resume checkpoint.
+    """
+    if batch_size <= 0:
+        raise ValueError("batch_size must be > 0")
+    if not interleave_records:
+        for start in range(0, len(tasks), batch_size):
+            yield tasks[start : start + batch_size]
+        return
+
+    by_record: dict[int, deque[dict[str, Any]]] = {}
+    for task in tasks:
+        by_record.setdefault(int(task["record_idx"]), deque()).append(task)
+    waiting = iter(by_record.values())
+    active: list[deque[dict[str, Any]]] = []
+    while True:
+        while len(active) < batch_size:
+            pending = next(waiting, None)
+            if pending is None:
+                break
+            active.append(pending)
+        if not active:
+            return
+        batch = [pending.popleft() for pending in active]
+        yield batch
+        active = [pending for pending in active if pending]
 
 
 def _task_key(record_idx: int, token_pos: int) -> tuple[int, int]:
@@ -640,7 +693,7 @@ def main() -> None:
     output_path = out_dir / args.result_file_name
     checkpoint_path = out_dir / args.checkpoint_file_name
 
-    track_token_ids = _load_track_token_ids(Path(args.track_token_map))
+    track_token_map = _load_track_token_map(Path(args.track_token_map))
     records = load_jsonl(input_path)
     if args.max_records > 0:
         records = records[: args.max_records]
@@ -687,9 +740,10 @@ def main() -> None:
             )
         lm_head_weight = _extract_lm_head_weight(args.base_model_path).to(device=device)
 
-    tasks = _build_track_tasks(
+    tasks = _build_probe_tasks(
         records=records,
-        track_token_ids=track_token_ids,
+        probe_point_mode="track_token",
+        track_token_map=track_token_map,
         track_token_stride=args.track_token_stride,
     )
 
@@ -745,7 +799,7 @@ def main() -> None:
             "max_hidden_state_retries": args.max_hidden_state_retries,
             "device": args.device,
             "max_records": args.max_records,
-            "track_token_ids": len(track_token_ids),
+            "track_token_ids": len(track_token_map),
             "scored_track_positions": 0,
             "skipped_context_window_positions": 0,
             "resume": args.resume,
@@ -756,7 +810,7 @@ def main() -> None:
         dump_json(out_dir / "args.json", merged_args)
 
         print(f"Input records: {len(records)}")
-        print(f"Track token ids: {len(track_token_ids)}")
+        print(f"Track token ids: {len(track_token_map)}")
         print("Scored track positions: 0")
         print("Skipped context-window positions: 0")
         print(f"Output directory: {out_dir}")
@@ -953,7 +1007,7 @@ def main() -> None:
         "max_hidden_state_retries": args.max_hidden_state_retries,
         "device": args.device,
         "max_records": args.max_records,
-        "track_token_ids": len(track_token_ids),
+        "track_token_ids": len(track_token_map),
         "scored_track_positions": scored_positions,
         "skipped_context_window_positions": skipped_context_window_positions,
         "resume": args.resume,
@@ -966,7 +1020,7 @@ def main() -> None:
     dump_json(out_dir / "args.json", merged_args)
 
     print(f"Input records: {len(records)}")
-    print(f"Track token ids: {len(track_token_ids)}")
+    print(f"Track token ids: {len(track_token_map)}")
     print(f"Scored track positions: {scored_positions}")
     print(f"Skipped context-window positions: {skipped_context_window_positions}")
     print(f"Output directory: {out_dir}")

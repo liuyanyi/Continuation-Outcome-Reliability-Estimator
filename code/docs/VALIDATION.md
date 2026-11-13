@@ -2,10 +2,17 @@
 
 ## CPU validation
 
-All 42 CPU unittest cases passed. Static checks passed for 66 Python sources,
+All 54 CPU unittest cases passed. Static checks passed for 67 Python sources,
 examples and configuration/lock syntax.
 
 Coverage includes:
+
+- Shared encoding across multiple heads: one request per selected prefix, parity
+  with the training projection on untied weights, context-limit skips, complete
+  and interrupted-journal recovery, and rejection of changed head manifests.
+- Absolute sqrt(N) loss scaling and gradients at batch size one, the supported
+  weighting modes, and rejection of the removed normalized weighting mode.
+- Interleaved prefix scheduling with unequal rollout lengths and resumed gaps.
 
 - A local fake SGLang service running generation, probe encoding, online pruning
   and evaluation, with token-aligned scores and final V2 report checks.
